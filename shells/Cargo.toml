@@ -13,9 +13,11 @@ testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
 soroban-sdk = "0.1.0"
+soroban-auth = "0.1.0"
 
 [dev_dependencies]
 soroban-sdk = { version = "0.1.0", features = ["testutils"] }
+soroban-auth = { version = "0.1.0", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"
@@ -30,3 +32,15 @@ lto = true
 [profile.release-with-logs]
 inherits = "release"
 debug-assertions = true
+
+[patch.crates-io]
+soroban-sdk = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "b66355c" }
+soroban-spec = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "b66355c" }
+soroban-auth = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "b66355c" }
+soroban-sdk-macros = { git = "https://github.com/stellar/rs-soroban-sdk", rev = "b66355c" }
+soroban-env-common = { git = "https://github.com/stellar/rs-soroban-env", rev = "966b159" }
+soroban-env-guest = { git = "https://github.com/stellar/rs-soroban-env", rev = "966b159" }
+soroban-env-host = { git = "https://github.com/stellar/rs-soroban-env", rev = "966b159" }
+soroban-env-macros = { git = "https://github.com/stellar/rs-soroban-env", rev = "966b159" }
+soroban-native-sdk-macros = { git = "https://github.com/stellar/rs-soroban-env", rev = "966b159" }
+stellar-xdr = { git = "https://github.com/stellar/rs-stellar-xdr", rev = "3ba1368" }
