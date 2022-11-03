@@ -3,6 +3,8 @@ use std::println;
 use crate::sea::DataKey;
 use soroban_sdk::{BigInt, Env};
 
+// REVIEW: Would recommend at least logically grouping these by "thing"
+
 pub fn get_total_shares(e: &Env) -> BigInt {
     e.data().get_unchecked(DataKey::ShareTotal).unwrap()
 }

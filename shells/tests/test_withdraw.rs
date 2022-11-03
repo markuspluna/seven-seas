@@ -12,6 +12,7 @@ use helper::{
     generate_contract_id,
 };
 extern crate std;
+// REVIEW: Lots of carry over from `test_deposit`
 #[test]
 fn test_withdraw_happy_path() {
     let e = Env::default();

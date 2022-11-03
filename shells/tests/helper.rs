@@ -13,6 +13,7 @@ pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     BytesN::from_array(e, &id)
 }
 
+// REVIEW: Not sure these need to be different methods. The name and symbol really don't matter
 pub fn create_base_token_contract(
     e: &Env,
     contract_id: &BytesN<32>,
@@ -26,7 +27,7 @@ pub fn create_base_token_contract(
         &token::TokenMetadata {
             name: "shell".into_val(e),
             symbol: "SHL".into_val(e),
-            decimals: 7,
+            decimals: 7, // REVIEW: The decimal usage doesn't appear to be consistent?
         },
     );
     token

@@ -8,14 +8,15 @@ use helper::{
     create_base_token_contract, create_sea_contract, create_share_token_contract,
     generate_contract_id,
 };
-extern crate std;
+extern crate std; // REVIEW: Is this needed?
 #[test]
+// REVIEW: There isn't a deposit method on your contract, a better name would be `test_sink...`
 fn test_deposit_happy_path() {
     let e = Env::default();
 
-    std::println!("in test",);
+    std::println!("in test",); // REVIEW: Debug things
 
-    let deposit_amount_i64 = 123456789;
+    let deposit_amount_i64 = 123456789; // REVIEW: You do everything in big ints, not sure this needs to exist?
     let deposit_amount = BigInt::from_i64(&e, deposit_amount_i64);
 
     // deploy token contracts
@@ -41,7 +42,8 @@ fn test_deposit_happy_path() {
     std::println!("setup env",);
 
     // deploy and init sea
-    let rate = BigInt::from_i64(&e, 5000000000000);
+    // REVIEW: 0.000005? Also 18 decimals is a little large for i64, max value is 9.2
+    let rate = BigInt::from_i64(&e, 5_000000000_000); 
     let sea_contract_id = generate_contract_id(&e);
     let sea_id = Identifier::Contract(sea_contract_id.clone());
     let sea_client = create_sea_contract(&e, &sea_contract_id);

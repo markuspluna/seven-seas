@@ -1,3 +1,4 @@
+// REVIEW: Not needed
 use core::ops::{Shl, Shr, ShrAssign};
 
 use crate::{
@@ -24,6 +25,9 @@ pub enum DataKey {
     Admin,      // admin address
     Decimals,   // decimals
 }
+
+// REVIEW: Bit confusing due to some helpers listed here and some separated into files
+//         Consider cleaning up homes for these 
 
 fn get_base_token(e: &Env) -> BytesN<32> {
     e.data().get_unchecked(DataKey::BaseToken).unwrap()
@@ -55,6 +59,8 @@ fn set_rate(e: &Env, rate: BigInt) {
     e.data().set(DataKey::Rate, rate)
 }
 
+// REVIEW: Picky: (but somewhat important for contracts)
+//         Consider having consistent variable orders to avoid whoopsies
 fn burn_shares(e: &Env, amount: BigInt, from: Identifier) {
     let total = get_total_shares(e);
     let share_token_client = get_share_token_client(&e);
@@ -87,11 +93,13 @@ fn transfer(e: &Env, contract_id: BytesN<32>, to: Identifier, amount: BigInt) {
         &amount,
     );
 }
+// REVIEW: Run `cargo fmt` to format your project (I think it will enforce spacing?)
 pub struct Sea;
 pub trait SeaTrait {
     // initialize the contract with caller as the admin
     fn initialize(e: Env, share_token_id: BytesN<32>, base_token_id: BytesN<32>, rate: BigInt);
 
+    // REVIEW: this is a bit of a misnomer? Nothing in here is private
     /******** Public functions ********/
     // stake base tokens for share tokens
     fn sink(e: Env, amount: BigInt);
@@ -105,6 +113,7 @@ pub trait SeaTrait {
     // transfers contract holdings
     fn xfer_held(e: Env, token_id: BytesN<32>, to: Identifier, amount: BigInt);
 
+    // REVIEW: Picky: Recommend conforming to rust naming conventions (set_rate)
     // set the rebase rate
     fn setRate(e: Env, rate: BigInt);
 
@@ -129,12 +138,17 @@ impl SeaTrait for Sea {
 
         //set remaining data
         set_total_shares(&e, BigInt::zero(&e));
-        set_rate(&e, rate);
+        set_rate(&e, rate); // REVIEW: Should be noted this has to contain `decimals` decimals
         set_index(&e, decimals_in_int(&e));
         set_last_block(&e);
         set_decimals(&e);
         write_administrator(&e, Identifier::from(e.invoker()));
     }
+
+    // REVIEW: Function comments should be applied to the trait
+    //         In-line comments should be for anything that is non-obvious
+    //         It's a fair argument that mine was overcommented, but due to context I added
+    //         lots of extra info regarding authentication
 
     // stake base tokens for share tokens
     fn sink(e: Env, amount: BigInt) {
@@ -146,16 +160,18 @@ impl SeaTrait for Sea {
         set_last_block(&e);
 
         //burn base tokens from caller, token contract will panic if balance is insufficient
+        // REVIEW: I've never actually read Ohm contracts. Do they actually burn the token when you "stake"?
         burn_token(&e, amount.clone(), Identifier::from(e.invoker()));
         //mint share share tokens to caller
         let mint_amount = amount * decimals_in_int(&e) / new_index.clone();
-        std::println!("new_index: {}", new_index);
+        std::println!("new_index: {}", new_index); // REVIEW: clear out the debugs
         mint_shares(&e, Identifier::from(e.invoker()), mint_amount);
     }
 
     // unstake share tokens for base tokens
     fn dredge(e: Env, amount: BigInt) {
         //get new index
+        // REVIEW: it feels like the three of these can be consolidated to a `update_index` fn
         let new_index = get_new_index(&e);
         std::println!("new_index: {}", new_index);
 
@@ -168,6 +184,7 @@ impl SeaTrait for Sea {
         burn_shares(&e, amount.clone(), Identifier::from(e.invoker()));
         //mint base tokens to caller
         std::println!("amount {}", amount);
+        // REVIEW: The writeup / README should include a note on this math
         let mint_amount = amount * new_index / decimals_in_int(&e);
         std::println!("amount {}", mint_amount);
 
@@ -180,6 +197,7 @@ impl SeaTrait for Sea {
     }
 
     /******** Admin functions ********/
+    // REVIEW: Not sure I follow what the contract will holding or why this method is needed
     // transfers contract holdings
     fn xfer_held(e: Env, token_id: BytesN<32>, to: Identifier, amount: BigInt) {
         //check that invoker is admin
