@@ -1,5 +1,5 @@
 [package]
-name = "shells"
+name = "soroban-bag"
 version = "0.1.0"
 edition = "2021"
 
@@ -20,7 +20,7 @@ rand = { version = "0.7.3" }
 [dev_dependencies]
 soroban-sdk = { version = "0.1.0", features = ["testutils"] }
 soroban-auth = { version = "0.1.0", features = ["testutils"] }
-shells = { path = ".", features = ["testutils"] }
+soroban-bag = { path = ".", features = ["testutils"] }
 
 
 [profile.release]

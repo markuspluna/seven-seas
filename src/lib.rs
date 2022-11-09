@@ -3,8 +3,8 @@
 #[cfg(any(test, feature = "testutils"))]
 extern crate std;
 
-mod accounting;
-mod auth;
+mod admin;
+mod data_management;
 
 pub mod sea;
 pub mod token {

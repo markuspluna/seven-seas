@@ -811,16 +811,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shells"
-version = "0.1.0"
-dependencies = [
- "rand 0.7.3",
- "shells",
- "soroban-auth",
- "soroban-sdk",
-]
-
-[[package]]
 name = "signature"
 version = "1.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -843,6 +833,16 @@ source = "git+https://github.com/stellar/rs-soroban-sdk?rev=b66355c#b66355c40288
 dependencies = [
  "ed25519-dalek",
  "rand 0.7.3",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "soroban-bag"
+version = "0.1.0"
+dependencies = [
+ "rand 0.7.3",
+ "soroban-auth",
+ "soroban-bag",
  "soroban-sdk",
 ]
 
