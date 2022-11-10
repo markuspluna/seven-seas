@@ -103,4 +103,7 @@ fn test_end_voyage() {
 
     //check that user received shells
     assert_eq!(base_token_client.balance(&user1_id), user_num_voyages);
+    //check that user no longer has an outstanding voyage
+    let remaining_vygs = sea_client.get_u_vygs(&user1_id, &expected_id);
+    assert_eq!(remaining_vygs, 0);
 }
