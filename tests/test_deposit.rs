@@ -9,6 +9,7 @@ use helper::{
     generate_contract_id,
 };
 extern crate std;
+
 #[test]
 fn test_deposit_happy_path() {
     let e = Env::default();
@@ -37,6 +38,7 @@ fn test_deposit_happy_path() {
 
     // deploy and init sea
     let rate = BigInt::from_i64(&e, 5);
+    let target_raid_interval: u32 = 1800;
     let sea_contract_id = generate_contract_id(&e);
     let sea_id = Identifier::Contract(sea_contract_id.clone());
     let sea_client = create_sea_contract(&e, &sea_contract_id);
@@ -45,6 +47,7 @@ fn test_deposit_happy_path() {
         &base_token_contract_id,
         &rate,
         &BigInt::from_i64(&e, 10000000),
+        &target_raid_interval,
     );
 
     // transfer admin priviliges

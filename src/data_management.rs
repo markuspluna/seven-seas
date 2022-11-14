@@ -71,6 +71,14 @@ pub fn get_user_voyage(e: &Env, user: Identifier, voyage: i32) -> BigInt {
     return data;
 }
 
+pub fn get_last_raid_block(e: &Env) -> u32 {
+    e.data().get(DataKey::LastRaid).unwrap_or(Ok(0)).unwrap()
+}
+
+pub fn get_target_raid_interval(e: &Env) -> u32 {
+    e.data().get_unchecked(DataKey::TgtRaidInt).unwrap()
+}
+
 /******** Write Functions */
 pub fn set_total_shares(e: &Env, amount: BigInt) {
     e.data().set(DataKey::ShareTotal, amount)
@@ -124,4 +132,13 @@ pub fn remove_user_voyage(e: &Env, user: Identifier, voyage_id: i32) {
 
 pub fn set_last_voyage_id(e: &Env, voyage_id: i32) {
     e.data().set(DataKey::LastVoyage, voyage_id)
+}
+
+pub fn set_last_raid(e: &Env) {
+    let block_now = e.ledger().sequence();
+    e.data().set(DataKey::LastRaid, block_now)
+}
+
+pub fn set_target_raid_interval(e: &Env, interval: u32) {
+    e.data().set(DataKey::TgtRaidInt, interval)
 }

@@ -1,5 +1,5 @@
 #![cfg(test)]
-extern crate std;
+
 use soroban_auth::{Identifier, Signature};
 use soroban_sdk::{
     testutils::{Accounts, Ledger, LedgerInfo},
@@ -10,8 +10,11 @@ use helper::{
     create_base_token_contract, create_sea_contract, create_share_token_contract,
     create_usdc_token_contract, generate_contract_id,
 };
+extern crate std;
+
 #[test]
-fn test_end_voyage() {
+#[should_panic(expected = "Not Implemented")]
+fn test_raid_happy_path() {
     let e = Env::default();
 
     //set ledger sequence so we can estimate voyage expiration
@@ -46,9 +49,18 @@ fn test_end_voyage() {
         &user1_id,
         &user_usdc_spend,
     );
+    let user2_acct = e.accounts().generate_and_create();
+    let user2_id = Identifier::Account(user2_acct.clone());
+    base_token_client.with_source_account(&token_admin).mint(
+        &soroban_auth::Signature::Invoker,
+        &BigInt::zero(&e),
+        &user2_id,
+        &BigInt::from_i64(&e, 1),
+    );
     assert_eq!(usdc_token_client.balance(&user1_id), user_usdc_spend);
     // deploy and init sea
     let rate = BigInt::from_i64(&e, 5);
+    let target_raid_interval: u32 = 1800;
     let sea_contract_id = generate_contract_id(&e);
     let sea_id = Identifier::Contract(sea_contract_id.clone());
     let sea_client = create_sea_contract(&e, &sea_contract_id);
@@ -57,6 +69,7 @@ fn test_end_voyage() {
         &base_token_contract_id,
         &rate,
         &BigInt::from_i64(&e, 10000000),
+        &target_raid_interval,
     );
 
     // transfer admin priviliges
@@ -86,24 +99,17 @@ fn test_end_voyage() {
         .with_source_account(&user1_acct)
         .voyage(&expected_id, &user_num_voyages);
 
-    //let voyage expire
-    let expected_expiration: u32 = 10 + 100800;
+    //let time pass
+    let new_block: u32 = 10 + 900;
     e.ledger().set(LedgerInfo {
         timestamp: 100,
         protocol_version: 1,
-        sequence_number: expected_expiration,
+        sequence_number: new_block,
         network_passphrase: Default::default(),
         base_reserve: 10,
     });
 
-    //end voyage
-    sea_client
-        .with_source_account(&user1_acct)
-        .end_voyage(&expected_id);
-
-    //check that user received shells
-    assert_eq!(base_token_client.balance(&user1_id), user_num_voyages);
-    //check that user no longer has an outstanding voyage
-    let remaining_vygs = sea_client.get_u_vygs(&user1_id, &expected_id);
-    assert_eq!(remaining_vygs, 0);
+    //TODO: add testing for raiding success, we need to wait for the PRNG PR - https://github.com/stellar/rs-soroban-env/pull/544
+    //Currently we just check that the function emits a not implemented panic
+    sea_client.raid(&expected_id, &user1_id);
 }
