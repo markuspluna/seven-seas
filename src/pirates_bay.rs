@@ -1,50 +1,53 @@
 use core::u32::MAX;
 
 use crate::{
-    admin::{check_admin, write_administrator},
+    captain::{check_captain, write_captain},
     data_management::{
         get_base_token_client, get_decimals, get_last_raid_block, get_last_voyage_id,
-        get_new_index, get_share_token_client, get_target_raid_interval, get_total_shares,
+        get_new_index, get_target_raid_interval, get_total_buried, get_user_buried,
         get_user_voyage, get_voyage, remove_user_voyage, set_base_token, set_decimals, set_index,
-        set_last_block, set_last_raid, set_last_voyage_id, set_rate, set_share_token,
-        set_target_raid_interval, set_total_shares, set_user_voyage, set_voyage, SCALER,
+        set_last_block, set_last_raid, set_last_voyage_id, set_rate, set_target_raid_interval,
+        set_total_buried, set_user_buried, set_user_voyage, set_voyage, SCALER,
     },
 };
 use soroban_auth::{Identifier, Signature};
-use soroban_sdk::{contractimpl, contracttype, symbol, BigInt, BytesN, Env};
+use soroban_sdk::{contractimpl, contracttype, symbol, BigInt, BytesN, Env, RawVal};
 
 // ****** Contract Storage *****
 
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKey {
-    BaseToken,             // address of the shell token
-    ShareToken,            // address of the seashell token
-    ShareTotal,            // total shares issued
-    Rate,                  // per-block rebase rate for seashell tokens
-    Index,                 // rebase index for seashell tokens
-    LastBlock,             // last block the index was updated at
-    Admin,                 // admin address
-    Decimals,              // decimals
-    Voyages(i32),          // struct of voyage information
-    LastVoyage,            // stores the id of the last voyage
-    UserVoyage(VoyageKey), // struct of user voyages
-    LastRaid,              // stores the block the last raid was performed on
-    TgtRaidInt,            // stores the target raid interval (num blocks between raids)
+    BaseToken,              // address of the doubloon token
+    UserBuried(Identifier), // bigint storing the amount of doubloons buried by a user
+    TtlBuried,              // total doubloons buried
+    Rate,                   // per-100-block rebase rate for buried_doubloon tokens
+    Index,                  // rebase index for doubloon tokens
+    LastBlock,              // last block the index was updated at
+    Admin,                  // admin address
+    Decimals,               // decimals for both the index, rate, and buried_doubloon tokens
+    Voyages(i32),           // struct of voyage information
+    LastVoyage,             // stores the id of the last voyage
+    UserVoyage(VoyageKey),  // struct of user voyages
+    LastRaid,               // stores the block the last raid was performed on
+    TgtRaidInt,             // stores the target raid interval (num blocks between raids)
 }
 
-fn burn_shares(e: &Env, from: Identifier, amount: BigInt) {
-    let total = get_total_shares(e);
-    let share_token_client = get_share_token_client(&e);
-    share_token_client.burn(&Signature::Invoker, &BigInt::zero(&e), &from, &amount);
-    set_total_shares(e, total - amount);
+fn subtract_buried(e: &Env, from: Identifier, amount: BigInt) {
+    let current = get_user_buried(&e, from.clone());
+    if current < amount {
+        panic!("not enough buried doubloons to unearth");
+    }
+    set_user_buried(&e, from, current - amount.clone());
+    let total = get_total_buried(e);
+    set_total_buried(e, total - amount);
 }
 
-fn mint_shares(e: &Env, to: Identifier, amount: BigInt) {
-    let total = get_total_shares(e);
-    let share_token_client = get_share_token_client(&e);
-    share_token_client.mint(&Signature::Invoker, &BigInt::zero(&e), &to, &amount);
-    set_total_shares(e, total + amount);
+fn add_buried(e: &Env, to: Identifier, amount: BigInt) {
+    let current = get_user_buried(&e, to.clone());
+    set_user_buried(&e, to, current + amount.clone());
+    let total = get_total_buried(e);
+    set_total_buried(e, total + amount);
 }
 
 fn burn_token(e: &Env, from: Identifier, amount: BigInt) {
@@ -71,24 +74,17 @@ fn get_contract_id(e: &Env) -> Identifier {
 }
 
 const WEEK_IN_BLOCKS: u32 = 100_800;
-pub struct Sea;
-pub trait SeaTrait {
-    // initialize the contract with caller as the admin - rate is the raw integer, rate_scaler scales the rate to its decimal form
-    fn initialize(
-        e: Env,
-        share_token_id: BytesN<32>,
-        base_token_id: BytesN<32>,
-        rate: BigInt,
-        rate_scaler: BigInt,
-        target_rauid_interval: u32,
-    );
+pub struct PiratesBay;
+pub trait PiratesBayTrait {
+    // initialize the contract with caller as the admin - rate is the raw integer
+    fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32);
 
     /******** User functions ********/
     // stake base tokens for share tokens
-    fn sink(e: Env, amount: BigInt);
+    fn bury(e: Env, amount: BigInt);
 
     // unstake share tokens for base tokens
-    fn dredge(e: Env, amount: BigInt);
+    fn unearth(e: Env, amount: BigInt);
 
     // fund a voyage
     fn voyage(e: Env, voyage_id: i32, num_voyages: BigInt);
@@ -101,6 +97,9 @@ pub trait SeaTrait {
 
     /******** Read Functions *********/
     fn decimals(e: Env) -> BigInt;
+
+    //returns amount of buried doubloons user owns
+    fn get_buried(e: Env, user_id: Identifier) -> BigInt;
 
     //returns information about a voyage
     fn get_voyage(e: Env, voyage_id: i32) -> VoyageInfo;
@@ -121,8 +120,8 @@ pub trait SeaTrait {
     // set the rebase rate
     fn set_rate(e: Env, rate: BigInt);
 
-    // set a new admin
-    fn set_admin(e: Env, new_admin: Identifier);
+    // set a new captain
+    fn set_capn(e: Env, new_admin: Identifier);
 
     // set the target raid interval
     fn set_tgt_ri(e: Env, tgt_raid_int: u32);
@@ -131,48 +130,41 @@ pub trait SeaTrait {
 // ****** Contract ******
 
 #[contractimpl]
-impl SeaTrait for Sea {
-    fn initialize(
-        e: Env,
-        share_token_id: BytesN<32>,
-        base_token_id: BytesN<32>,
-        rate: BigInt,
-        rate_scaler: BigInt,
-        target_raid_interval: u32,
-    ) {
+impl PiratesBayTrait for PiratesBay {
+    fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32) {
         if e.data().has(DataKey::BaseToken) {
             panic!("contract already initialized");
         }
-        //check that sea contract is the admin for base tokens and share token
+        //check if PiratesBay contract is the admin for base tokens and share token
         /*** Note - currently not possible as you can't read token admins TODO: file issue */
 
         set_base_token(&e, base_token_id);
-        set_share_token(&e, share_token_id);
-        set_total_shares(&e, BigInt::zero(&e));
-        set_rate(&e, rate, rate_scaler);
-        set_index(&e, BigInt::from_i64(&e, SCALER));
+        set_total_buried(&e, BigInt::zero(&e));
+        set_rate(&e, rate);
+        set_index(&e, BigInt::from_i64(&e, SCALER * SCALER));
         set_last_block(&e);
         set_decimals(&e);
         set_target_raid_interval(&e, target_raid_interval);
-        write_administrator(&e, Identifier::from(e.invoker()));
+        write_captain(&e, Identifier::from(e.invoker()));
     }
 
-    fn sink(e: Env, amount: BigInt) {
+    fn bury(e: Env, amount: BigInt) {
+        let user_id = Identifier::from(e.invoker());
         let new_index = get_new_index(&e);
         set_index(&e, new_index.clone());
         set_last_block(&e);
-        burn_token(&e, Identifier::from(e.invoker()), amount.clone());
-        let mint_amount = amount * BigInt::from_i64(&e, SCALER) / new_index.clone();
-        mint_shares(&e, Identifier::from(e.invoker()), mint_amount);
+        burn_token(&e, user_id.clone(), amount.clone());
+        let bury_amount = amount * BigInt::from_i64(&e, SCALER * SCALER) / new_index.clone();
+        add_buried(&e, user_id, bury_amount);
     }
 
-    fn dredge(e: Env, amount: BigInt) {
+    fn unearth(e: Env, amount: BigInt) {
         let user = Identifier::from(e.invoker());
         let new_index = get_new_index(&e);
         set_index(&e, new_index.clone());
         set_last_block(&e);
-        burn_shares(&e, user.clone(), amount.clone());
-        let mint_amount = amount * new_index / BigInt::from_i64(&e, SCALER);
+        subtract_buried(&e, user.clone(), amount.clone());
+        let mint_amount = amount * new_index / BigInt::from_i64(&e, SCALER * SCALER);
         mint_token(&e, user, mint_amount);
     }
 
@@ -247,8 +239,7 @@ impl SeaTrait for Sea {
         let max_ok_PRNG = MAX / 1000000 * raid_probability;
         // check if the raid was successful
         // TODO: Use PRNG to determine if raid was successful, waiting on this PR https://github.com/stellar/rs-soroban-env/pull/544
-        // let host = Host::default();
-        // let prng_u32: u32 = host.prng_next_u32(RawVal::from_bool(true));
+        // let prng_u32: u32 = e.prng_next_u32(RawVal::from_bool(true));
         // if prng_u32 < max_ok_PRNG {
         //     // raid was successful, user loses all their voyages, raider gets shells
         //     remove_user_voyage(&e, voyager_id, voyage_id);
@@ -272,6 +263,10 @@ impl SeaTrait for Sea {
         return get_decimals(&e);
     }
 
+    fn get_buried(e: Env, user_id: Identifier) -> BigInt {
+        return get_user_buried(&e, user_id);
+    }
+
     fn get_voyage(e: Env, voyage_id: i32) -> VoyageInfo {
         return get_voyage(&e, voyage_id);
     }
@@ -286,7 +281,7 @@ impl SeaTrait for Sea {
 
     /******** Admin functions ********/
     fn new_voyage(e: Env, vyg_asset: BytesN<32>, price: BigInt, max_vygs: BigInt) {
-        check_admin(&e, &Signature::Invoker);
+        check_captain(&e, &Signature::Invoker);
         let voyage_id = get_last_voyage_id(&e) + 1;
         let voyage_info = VoyageInfo {
             vyg_asset,
@@ -302,29 +297,29 @@ impl SeaTrait for Sea {
     // transfers contract holdings
     fn xfer_held(e: Env, token_id: BytesN<32>, to: Identifier, amount: BigInt) {
         //check that invoker is admin
-        check_admin(&e, &Signature::Invoker);
+        check_captain(&e, &Signature::Invoker);
         transfer(&e, token_id, to, amount);
     }
 
     fn set_rate(e: Env, rate: BigInt) {
         //check that invoker is admin
-        check_admin(&e, &Signature::Invoker);
+        check_captain(&e, &Signature::Invoker);
         let new_index = get_new_index(&e);
         set_index(&e, new_index);
         set_last_block(&e);
-        set_rate(&e, rate, BigInt::from_i64(&e, SCALER));
+        set_rate(&e, rate);
     }
 
     fn set_tgt_ri(e: Env, interval: u32) {
         //check that invoker is admin
-        check_admin(&e, &Signature::Invoker);
+        check_captain(&e, &Signature::Invoker);
         set_target_raid_interval(&e, interval);
     }
 
-    fn set_admin(e: Env, new_admin: Identifier) {
+    fn set_capn(e: Env, new_admin: Identifier) {
         //check that invoker is admin
-        check_admin(&e, &Signature::Invoker);
-        write_administrator(&e, new_admin);
+        check_captain(&e, &Signature::Invoker);
+        write_captain(&e, new_admin);
     }
 }
 

@@ -7,8 +7,8 @@ use soroban_sdk::{
 };
 mod helper;
 use helper::{
-    create_base_token_contract, create_sea_contract, create_share_token_contract,
-    create_usdc_token_contract, generate_contract_id,
+    create_base_token_contract, create_sea_contract, create_usdc_token_contract,
+    generate_contract_id,
 };
 extern crate std;
 
@@ -35,11 +35,9 @@ fn test_raid_happy_path() {
     let token_admin = e.accounts().generate_and_create();
     let usdc_token_contract_id = generate_contract_id(&e);
     let base_token_contract_id = generate_contract_id(&e);
-    let share_token_contract_id = generate_contract_id(&e);
     let usdc_token_client = create_usdc_token_contract(&e, &usdc_token_contract_id, &token_admin);
     let base_token_client = create_base_token_contract(&e, &base_token_contract_id, &token_admin);
-    let share_token_client =
-        create_share_token_contract(&e, &share_token_contract_id, &token_admin);
+
     // setup env
     let user1_acct = e.accounts().generate_and_create();
     let user1_id = Identifier::Account(user1_acct.clone());
@@ -65,17 +63,12 @@ fn test_raid_happy_path() {
     let sea_id = Identifier::Contract(sea_contract_id.clone());
     let sea_client = create_sea_contract(&e, &sea_contract_id);
     sea_client.with_source_account(&token_admin).initialize(
-        &share_token_contract_id,
         &base_token_contract_id,
         &rate,
-        &BigInt::from_i64(&e, 10000000),
         &target_raid_interval,
     );
 
     // transfer admin priviliges
-    share_token_client
-        .with_source_account(&token_admin)
-        .set_admin(&Signature::Invoker, &BigInt::zero(&e), &sea_id);
     base_token_client
         .with_source_account(&token_admin)
         .set_admin(&Signature::Invoker, &BigInt::zero(&e), &sea_id);

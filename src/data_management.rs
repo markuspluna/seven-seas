@@ -1,5 +1,5 @@
 use crate::{
-    sea::{DataKey, VoyageInfo, VoyageKey},
+    pirates_bay::{DataKey, VoyageInfo, VoyageKey},
     token::Identifier,
 };
 use soroban_sdk::{BigInt, BytesN, Env};
@@ -7,8 +7,15 @@ use soroban_sdk::{BigInt, BytesN, Env};
 pub const SCALER: i64 = 10000000;
 
 /******** Read functions */
-pub fn get_total_shares(e: &Env) -> BigInt {
-    e.data().get_unchecked(DataKey::ShareTotal).unwrap()
+pub fn get_user_buried(e: &Env, user: Identifier) -> BigInt {
+    e.data()
+        .get(DataKey::UserBuried(user.clone()))
+        .unwrap_or(Ok(BigInt::zero(&e)))
+        .unwrap()
+}
+
+pub fn get_total_buried(e: &Env) -> BigInt {
+    e.data().get_unchecked(DataKey::TtlBuried).unwrap()
 }
 
 pub fn get_rate(e: &Env) -> BigInt {
@@ -24,8 +31,12 @@ pub fn get_index(e: &Env) -> BigInt {
 
 pub fn get_new_index(e: &Env) -> BigInt {
     let block_now = e.ledger().sequence();
-
-    return get_index(e) + get_rate(e) * BigInt::from_u32(&e, block_now - get_last_block(e));
+    //multiply by 1000 to avoid decimals
+    return get_index(e)
+        + get_rate(e)
+            * BigInt::from_u32(&e, block_now - get_last_block(e))
+            * BigInt::from_i64(e, SCALER)
+            / 100;
 }
 
 pub fn get_last_block(e: &Env) -> u32 {
@@ -38,15 +49,6 @@ pub fn get_base_token(e: &Env) -> BytesN<32> {
 
 pub fn get_base_token_client(e: &Env) -> crate::token::Client {
     let id = get_base_token(e);
-    crate::token::Client::new(e, id)
-}
-
-pub fn get_share_token(e: &Env) -> BytesN<32> {
-    e.data().get_unchecked(DataKey::ShareToken).unwrap()
-}
-
-pub fn get_share_token_client(e: &Env) -> crate::token::Client {
-    let id = get_share_token(e);
     crate::token::Client::new(e, id)
 }
 
@@ -80,8 +82,13 @@ pub fn get_target_raid_interval(e: &Env) -> u32 {
 }
 
 /******** Write Functions */
-pub fn set_total_shares(e: &Env, amount: BigInt) {
-    e.data().set(DataKey::ShareTotal, amount)
+pub fn set_user_buried(e: &Env, user_id: Identifier, amount: BigInt) {
+    let key = DataKey::UserBuried(user_id.clone());
+    e.data().set(key, amount);
+}
+
+pub fn set_total_buried(e: &Env, amount: BigInt) {
+    e.data().set(DataKey::TtlBuried, amount)
 }
 
 pub fn set_index(e: &Env, index: BigInt) {
@@ -101,12 +108,8 @@ pub fn set_base_token(e: &Env, contract_id: BytesN<32>) {
     e.data().set(DataKey::BaseToken, contract_id);
 }
 
-pub fn set_share_token(e: &Env, contract_id: BytesN<32>) {
-    e.data().set(DataKey::ShareToken, contract_id);
-}
-
-pub fn set_rate(e: &Env, rate: BigInt, decimal_scaler: BigInt) {
-    e.data().set(DataKey::Rate, rate * SCALER / decimal_scaler)
+pub fn set_rate(e: &Env, rate: BigInt) {
+    e.data().set(DataKey::Rate, rate);
 }
 
 pub fn set_voyage(e: &Env, voyage_id: i32, voyage: VoyageInfo) {

@@ -1,5 +1,5 @@
 use soroban_bag::{
-    sea::{Sea, SeaClient},
+    pirates_bay::{PiratesBay, PiratesBayClient},
     token,
 };
 
@@ -51,27 +51,7 @@ pub fn create_base_token_contract(
     token
 }
 
-pub fn create_share_token_contract(
-    e: &Env,
-    contract_id: &BytesN<32>,
-    admin: &AccountId,
-) -> token::Client {
-    e.register_contract_token(contract_id);
-
-    let token = token::Client::new(e, contract_id);
-    token.init(
-        &Identifier::Account(admin.clone()),
-        &token::TokenMetadata {
-            name: "seashell".into_val(e),
-            symbol: "SSHL".into_val(e),
-            decimals: 7,
-        },
-    );
-    token
+pub fn create_sea_contract(e: &Env, contract_id: &BytesN<32>) -> PiratesBayClient {
+    e.register_contract(contract_id, PiratesBay {});
+    return PiratesBayClient::new(e, contract_id);
 }
-
-pub fn create_sea_contract(e: &Env, contract_id: &BytesN<32>) -> SeaClient {
-    e.register_contract(contract_id, Sea {});
-    return SeaClient::new(e, contract_id);
-}
-pub const SCALER: i64 = 10000000;

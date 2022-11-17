@@ -7,10 +7,7 @@ use soroban_sdk::{
 };
 
 mod helper;
-use helper::{
-    create_base_token_contract, create_sea_contract, create_share_token_contract,
-    generate_contract_id, SCALER,
-};
+use helper::{create_base_token_contract, create_sea_contract, generate_contract_id};
 extern crate std;
 
 #[test]
@@ -31,42 +28,38 @@ fn test_withdraw_happy_path() {
     let token_admin = e.accounts().generate_and_create();
     let base_token_contract_id = generate_contract_id(&e);
     let base_token_client = create_base_token_contract(&e, &base_token_contract_id, &token_admin);
-    let share_token_contract_id = generate_contract_id(&e);
-    let share_token_client =
-        create_share_token_contract(&e, &share_token_contract_id, &token_admin);
 
     // setup env
     let user1_acct = e.accounts().generate_and_create();
     let user1_id = Identifier::Account(user1_acct.clone());
-    share_token_client.with_source_account(&token_admin).mint(
+    base_token_client.with_source_account(&token_admin).mint(
         &Signature::Invoker,
         &BigInt::zero(&e),
         &user1_id,
         &withdraw_amount,
     );
-    assert_eq!(share_token_client.balance(&user1_id), withdraw_amount);
 
     // deploy and init sea
-    let rate = BigInt::from_i64(&e, 5); //equivalent to 0.000005
+    let rate = BigInt::from_i64(&e, 10); //equivalent to 0.00001 per 100 blocks
     let target_raid_interval: u32 = 1800;
     let sea_contract_id = generate_contract_id(&e);
     let sea_id = Identifier::Contract(sea_contract_id.clone());
     let sea_client = create_sea_contract(&e, &sea_contract_id);
     sea_client.with_source_account(&token_admin).initialize(
-        &share_token_contract_id,
         &base_token_contract_id,
         &rate,
-        &BigInt::from_i64(&e, 10000000),
         &target_raid_interval,
     );
 
     // transfer admin priviliges
-    share_token_client
-        .with_source_account(&token_admin)
-        .set_admin(&Signature::Invoker, &BigInt::zero(&e), &sea_id);
     base_token_client
         .with_source_account(&token_admin)
         .set_admin(&Signature::Invoker, &BigInt::zero(&e), &sea_id);
+
+    // bury dubloons
+    sea_client
+        .with_source_account(&user1_acct)
+        .bury(&withdraw_amount);
 
     //pass 10000 blocks
     e.ledger().set(LedgerInfo {
@@ -77,13 +70,11 @@ fn test_withdraw_happy_path() {
         base_reserve: 10,
     });
 
-    let expected_withdrawal =
-        (rate.clone() * BigInt::from_i32(&e, 10000) + SCALER) * withdraw_amount.clone() / SCALER;
+    let expected_withdrawal = BigInt::from_i32(&e, 123469134);
 
     // withdraw
     sea_client
         .with_source_account(&user1_acct)
-        .dredge(&withdraw_amount);
-
+        .unearth(&withdraw_amount);
     assert_eq!(expected_withdrawal, base_token_client.balance(&user1_id));
 }
