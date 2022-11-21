@@ -1,5 +1,5 @@
 use soroban_bag::{
-    pirates_bay::{PiratesBay, PiratesBayClient},
+    seven_seas::{SevenSeas, SevenSeasClient},
     token,
 };
 
@@ -51,7 +51,7 @@ pub fn create_base_token_contract(
     token
 }
 
-pub fn create_sea_contract(e: &Env, contract_id: &BytesN<32>) -> PiratesBayClient {
-    e.register_contract(contract_id, PiratesBay {});
-    return PiratesBayClient::new(e, contract_id);
+pub fn create_sea_contract(e: &Env, contract_id: &BytesN<32>) -> SevenSeasClient {
+    e.register_contract(contract_id, SevenSeas {});
+    return SevenSeasClient::new(e, contract_id);
 }

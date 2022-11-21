@@ -1,5 +1,5 @@
 use crate::{
-    pirates_bay::{DataKey, VoyageInfo, VoyageKey},
+    seven_seas::{DataKey, VoyageInfo, VoyageKey},
     token::Identifier,
 };
 use soroban_sdk::{BigInt, BytesN, Env};

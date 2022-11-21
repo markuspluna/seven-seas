@@ -74,63 +74,127 @@ fn get_contract_id(e: &Env) -> Identifier {
 }
 
 const WEEK_IN_BLOCKS: u32 = 100_800;
-pub struct PiratesBay;
-pub trait PiratesBayTrait {
-    // initialize the contract with caller as the admin - rate is the raw integer
+pub struct SevenSeas;
+pub trait SevenSeasTrait {
+    #[doc = "
+    Initializes the contract
+    - the caller will be set as the captain
+    - the base_token_id is the address of the doubloon token
+    - the rate is the per-100-block rebase rate for buried_doubloon tokens
+    - the target_raid_interval is the goal number of blocks between raids
+    "]
     fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32);
 
     /******** User functions ********/
-    // stake base tokens for share tokens
+    #[doc = "
+    Buries doubloons
+    - amount is the number of doubloons to be buried
+    "]
     fn bury(e: Env, amount: BigInt);
 
-    // unstake share tokens for base tokens
+    #[doc = "
+    Unearths doubloons
+    - amount is the number of doubloons to be unearthed
+    "]
     fn unearth(e: Env, amount: BigInt);
 
-    // fund a voyage
+    #[doc = "
+    Fund and embark on a voyage
+    - voyage_id is the id of the voyage to embark on
+    - num_voyages is the number of voyages to embark on
+    "]
     fn voyage(e: Env, voyage_id: i32, num_voyages: BigInt);
 
-    // redeem a finished voyage
+    #[doc = "
+    End and redeem a voyage
+    - voyage_id is the id of the voyage the user wants to end
+    "]
     fn end_voyage(e: Env, voyage_id: i32);
 
-    // raid a users voyage
+    #[doc = "
+    Raid another users voyage
+    - voyage_id is the id of the voyage the user wants to raid
+    - user_id is the id of the user being raided
+    - raider must have enough doubloons to pay for the raid, they need doubloons equal to 1/100th the number of voyages of the input type that the input user is on
+    "]
     fn raid(e: Env, voyage_id: i32, user_id: Identifier);
 
     /******** Read Functions *********/
+    #[doc = "
+    Returns number of decimals associated with buried doubloons and the doubloon rebase rate
+    "]
     fn decimals(e: Env) -> BigInt;
 
-    //returns amount of buried doubloons user owns
+    #[doc = "
+    Returns the number of doubloons buried by the input user
+    - user_id is the id of the user whose buried doubloons are being queried
+    "]
     fn get_buried(e: Env, user_id: Identifier) -> BigInt;
 
-    //returns information about a voyage
+    #[doc = "
+    Returns information about the input voyage
+    - voyage_id is the id of the voyage being queried
+    - will return a struct with the following fields:
+        - vyg_asset: the asset used to fund the voyage
+        - price: the cost to embark on a voyage in voyage asset
+        - max_vygs: the maximum number of voyages that can be embarked on for this voyage offering
+        - n_embarked: number of voyages that have been embarked on
+        - expiration: block the voyage expires on
+    "]
     fn get_voyage(e: Env, voyage_id: i32) -> VoyageInfo;
 
-    //returns amount of voyages a user has for a specific voyage id
+    #[doc = "
+    Returns the number of voyages for a specific offering embarked on by the input user
+    - user_id is the id of the user whose voyages are being queried
+    - voyage_id is the id of the voyage offering being queried
+    "]
     fn get_u_vygs(e: Env, user_id: Identifier, voyage_id: i32) -> BigInt;
 
-    //gets the block the last raid was performed
+    #[doc = "
+    Returns the last block a raid ocurred on   
+    "]
     fn get_l_raid(e: Env) -> u32;
 
-    /******** Admin functions ********/
-    // create a new voyage (basically OHM bonds, but fun name)
+    /******** Captain only functions ********/
+    #[doc = "
+    Creates a new voyage offering  
+    - voyage_asset is the asset used to fund the voyage
+    - price is the cost to embark on a voyage in voyage asset
+    - available_voyages is the maximum number of voyages that can be embarked on for this voyage offering  
+    "]
     fn new_voyage(e: Env, voyage_asset: BytesN<32>, price: BigInt, available_voyages: BigInt);
 
-    // transfers contract holdings
+    #[doc = "
+    Transfers funds held in the contract
+    - token_id is the address of the token being transferred
+    - to is the destination for the transfer
+    - amount is the amount of tokesn to transfer
+    "]
     fn xfer_held(e: Env, token_id: BytesN<32>, to: Identifier, amount: BigInt);
 
-    // set the rebase rate
+    #[doc = "
+    Sets the rebase rate for buried doubloons (the rate at which doubloons grow when buried)
+    - rate is the per 100 block rebase rate for buried doubloons
+    "]
     fn set_rate(e: Env, rate: BigInt);
 
-    // set a new captain
-    fn set_capn(e: Env, new_admin: Identifier);
+    #[doc = "
+    Sets a new captain for the Seven Seas protocol
+    - new_captain is the address of the new captain
+    "]
+    fn set_capn(e: Env, new_captain: Identifier);
 
-    // set the target raid interval
+    #[doc = "
+    Sets the target raid interval (how often raids should occur)
+    - tgt_raid_int is the target number of blocks between raids
+    "]
     fn set_tgt_ri(e: Env, tgt_raid_int: u32);
 }
 
 // ****** Contract ******
 
 #[contractimpl]
-impl PiratesBayTrait for PiratesBay {
+impl SevenSeasTrait for SevenSeas {
     fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32) {
         if e.data().has(DataKey::BaseToken) {
             panic!("contract already initialized");
@@ -141,6 +205,7 @@ impl PiratesBayTrait for PiratesBay {
         set_base_token(&e, base_token_id);
         set_total_buried(&e, BigInt::zero(&e));
         set_rate(&e, rate);
+        // we double the scale of stored indexes to ensure that we don't run into decimal issues
         set_index(&e, BigInt::from_i64(&e, SCALER * SCALER));
         set_last_block(&e);
         set_decimals(&e);
@@ -328,8 +393,8 @@ impl PiratesBayTrait for PiratesBay {
 #[contracttype]
 pub struct VoyageInfo {
     pub vyg_asset: BytesN<32>, //asset being used to fund the voyage
-    pub price: BigInt,         //price of shells in voyage asset
-    pub max_vygs: BigInt,      //max number of voyages that can be entered for shells
+    pub price: BigInt,         //the cost to embark on a voyage in voyage asset
+    pub max_vygs: BigInt,      //max number of voyages that can be entered for doubloons
     pub n_embarked: BigInt,    //number of voyages that have been embarked on
     pub expiration: u32,       //block the voyage expires on
 }
