@@ -7,6 +7,8 @@ use rand::{thread_rng, RngCore};
 use soroban_auth::Identifier;
 use soroban_sdk::{AccountId, BytesN, Env, IntoVal};
 
+pub const SCALER: i64 = 10000000;
+
 pub fn generate_contract_id(e: &Env) -> BytesN<32> {
     let mut id: [u8; 32] = Default::default();
     thread_rng().fill_bytes(&mut id);

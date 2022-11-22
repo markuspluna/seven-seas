@@ -273,7 +273,8 @@ impl SevenSeasTrait for SevenSeas {
             panic!("user has no voyages for this voyage id");
         }
         // user gets shells equal to the number of voyages they finished
-        mint_token(&e, user_id.clone(), user_voyage_amt);
+        let mint_amount = user_voyage_amt.clone() * BigInt::from_i64(&e, SCALER);
+        mint_token(&e, user_id.clone(), mint_amount);
         remove_user_voyage(&e, user_id, voyage_id);
     }
 
@@ -288,7 +289,7 @@ impl SevenSeasTrait for SevenSeas {
             panic!("user has no voyages for this voyage id");
         }
         // calculate the amount of shells required to perform the raid
-        let raid_cost = user_voyage_amt / BigInt::from_i64(&e, 100);
+        let raid_cost = user_voyage_amt / BigInt::from_i64(&e, 100) * BigInt::from_i64(&e, SCALER);
         // burn the shells
         burn_token(&e, raider_id, raid_cost);
 
@@ -308,7 +309,8 @@ impl SevenSeasTrait for SevenSeas {
         // if prng_u32 < max_ok_PRNG {
         //     // raid was successful, user loses all their voyages, raider gets shells
         //     remove_user_voyage(&e, voyager_id, voyage_id);
-        //     mint_token(&e, raider_id.clone(), user_voyage_amt);
+        //     let mint_amount = user_voyage_amt * BigInt::from_i64(&e, SCALER);
+        //     mint_token(&e, raider_id.clone(), mint_amount);
         //     e.events().publish(
         //         (symbol!("raid_won"), voyage_id, voyager_id, current_block),
         //         true,
@@ -319,7 +321,7 @@ impl SevenSeasTrait for SevenSeas {
         //         false,
         //     );
         // }
-        //update last raid block
+        // update last raid block
         set_last_raid(&e);
     }
 

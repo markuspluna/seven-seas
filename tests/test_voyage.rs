@@ -8,7 +8,7 @@ use soroban_sdk::{
 mod helper;
 use helper::{
     create_base_token_contract, create_sea_contract, create_usdc_token_contract,
-    generate_contract_id,
+    generate_contract_id, SCALER,
 };
 extern crate std;
 #[test]
@@ -225,7 +225,8 @@ fn test_end_voyage() {
         .end_voyage(&expected_id);
 
     //check that user received shells
-    assert_eq!(base_token_client.balance(&user1_id), user_num_voyages);
+    let expected_shells = user_num_voyages.clone() * BigInt::from_i64(&e, SCALER);
+    assert_eq!(base_token_client.balance(&user1_id), expected_shells);
     //check that user no longer has an outstanding voyage
     let remaining_vygs = sea_client.get_u_vygs(&user1_id, &expected_id);
     assert_eq!(remaining_vygs, 0);
