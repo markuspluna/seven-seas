@@ -255,8 +255,7 @@ After ya deploy the Seven Seas protocol smart contract, The initialize function 
     - the rate is the per-100-block rebase rate for buried_doubloon tokens
     - the target_raid_interval is the goal number of blocks between raids
     "]
-    fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32);te_captain(&e, Identifier::from(e.invoker()));
-    }
+    fn initialize(e: Env, base_token_id: BytesN<32>, rate: BigInt, target_raid_interval: u32);
 
 ```
 
